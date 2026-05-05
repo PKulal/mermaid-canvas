@@ -11,12 +11,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMermaidStore } from '@/store/mermaid-store';
 import { MermaidDiagram } from '@/components/MermaidDiagram';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { TemplatesDialog } from '@/components/editor/TemplatesDialog';
 import { HistorySidebar } from '@/components/editor/HistorySidebar';
 import { PresentMode } from '@/components/editor/PresentMode';
 import { detectDiagramType } from '@/lib/mermaid-utils';
 import { exportPNG, exportPDF, exportSVG, copyShareUrl } from '@/lib/exporters';
 import { parseDiagramForPresent } from '@/lib/mermaid-parser';
+import { usePanZoom } from '@/hooks/use-pan-zoom';
 
 const DIAGRAM_TYPES = [
   { v: 'flowchart', label: 'Flowchart' },
@@ -73,6 +75,28 @@ function configureMonaco() {
         'editorWidget.background': '#1a1f26',
       },
     });
+    monaco.editor.defineTheme('mermaidflow-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'keyword', foreground: '0F8A6F', fontStyle: 'bold' },
+        { token: 'string', foreground: '1F2937' },
+        { token: 'comment', foreground: '94A3B8', fontStyle: 'italic' },
+        { token: 'operator', foreground: '0F8A6F' },
+        { token: 'number', foreground: 'B45309' },
+      ],
+      colors: {
+        'editor.background': '#F7F8FA',
+        'editor.foreground': '#1F2937',
+        'editor.lineHighlightBackground': '#EEF1F5',
+        'editorLineNumber.foreground': '#9AA4B2',
+        'editorLineNumber.activeForeground': '#0F8A6F',
+        'editor.selectionBackground': '#0F8A6F33',
+        'editorCursor.foreground': '#0F8A6F',
+        'editorIndentGuide.background': '#E2E8F0',
+        'editorWidget.background': '#FFFFFF',
+      },
+    });
   });
 }
 
@@ -92,13 +116,77 @@ export default function EditorPage() {
   const pushHistory = useMermaidStore(s => s.pushHistory);
   const diagramTheme = useMermaidStore(s => s.diagramTheme);
   const setDiagramTheme = useMermaidStore(s => s.setDiagramTheme);
+  const uiTheme = useMermaidStore(s => s.uiTheme);
 
   const [debouncedCode, setDebouncedCode] = useState(code);
   const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
   const [tab, setTab] = useState('preview');
+  const [svgEl, setSvgEl] = useState<SVGElement | null>(null);
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const svgRef = useRef<SVGElement | null>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
+  const { scale: zoom, translate: panTranslate, zoomIn, zoomOut, setView, setContentBounds, dragging } = usePanZoom(previewWrapRef);
+
+  // Track container size so we can size the SVG in absolute pixels for crisp zoom
+  useEffect(() => {
+    const el = previewWrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setContainerSize({ w: r.width, h: r.height });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Compute the diagram's natural aspect from its viewBox so we can size the SVG to match (no wasted letterbox)
+  const fitInfo = useMemo(() => {
+    if (!svgEl || containerSize.w === 0 || containerSize.h === 0) return null;
+    const vb = svgEl.viewBox.baseVal;
+    if (!vb || vb.width === 0 || vb.height === 0) return null;
+    const fitScale = Math.min(containerSize.w / vb.width, containerSize.h / vb.height);
+    const fitW = vb.width * fitScale;
+    const fitH = vb.height * fitScale;
+    return { fitW, fitH };
+  }, [svgEl, containerSize.w, containerSize.h]);
+
+  // Apply pixel dimensions to the rendered SVG so high-zoom stays crisp (vector-rendered)
+  useEffect(() => {
+    if (!svgEl || !fitInfo) return;
+    svgEl.style.width = `${fitInfo.fitW * zoom}px`;
+    svgEl.style.height = `${fitInfo.fitH * zoom}px`;
+    svgEl.style.maxWidth = 'none';
+    svgEl.style.maxHeight = 'none';
+    svgEl.style.margin = '0';
+    svgEl.style.display = 'block';
+    svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }, [svgEl, zoom, fitInfo]);
+
+  // Tell the pan-zoom hook about the diagram's natural fit dimensions so it can clamp pan
+  // (and auto-center when the SVG is smaller than the pane in some dimension).
+  useEffect(() => {
+    if (!fitInfo) {
+      setContentBounds(null);
+      return;
+    }
+    setContentBounds({ contentW: fitInfo.fitW, contentH: fitInfo.fitH });
+    // Re-apply current view through the constraint so it's clamped to the new bounds.
+    setView({});
+  }, [fitInfo, setContentBounds, setView]);
+
+  // Center the diagram in the preview pane (fit-to-view)
+  const fitToView = useCallback(() => {
+    setView({ scale: 1, x: 0, y: 0 });
+  }, [setView]);
+
+  // Auto-fit whenever a brand-new SVG element is rendered (new diagram).
+  // This also covers the very first load.
+  useEffect(() => {
+    if (!svgEl || !fitInfo) return;
+    fitToView();
+  }, [svgEl, fitToView]);
 
   useEffect(() => { configureMonaco(); }, []);
 
@@ -180,6 +268,7 @@ export default function EditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
             <Copy className="w-3.5 h-3.5" /> Copy Link
           </Button>
@@ -214,7 +303,7 @@ export default function EditorPage() {
           <div className="flex-1 min-h-0">
             <Editor
               language="mermaid"
-              theme="mermaidflow-dark"
+              theme={uiTheme === 'light' ? 'mermaidflow-light' : 'mermaidflow-dark'}
               value={code}
               onChange={(v) => setCode(v ?? '')}
               options={{
@@ -250,14 +339,14 @@ export default function EditorPage() {
 
               {tab === 'preview' && (
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setZoom(z => Math.max(0.4, z - 0.1))} title="Zoom out">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={zoomOut} title="Zoom out">
                     <ZoomOut className="w-3.5 h-3.5" />
                   </Button>
                   <span className="text-[10px] font-mono text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.1))} title="Zoom in">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={zoomIn} title="Zoom in">
                     <ZoomIn className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setZoom(1)} title="Fit">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={fitToView} title="Fit to view">
                     <Maximize2 className="w-3.5 h-3.5" />
                   </Button>
                   <div className="w-px h-5 bg-border mx-1" />
@@ -280,9 +369,9 @@ export default function EditorPage() {
               )}
             </div>
 
-            <TabsContent value="preview" className="flex-1 m-0 overflow-auto">
-              <div ref={previewWrapRef} className="min-h-full flex items-center justify-center p-8">
-                {isEmpty || error ? (
+            <TabsContent value="preview" className="flex-1 m-0 relative overflow-hidden">
+              {isEmpty || error ? (
+                <div className="absolute inset-0 flex items-center justify-center p-8">
                   <div className="text-center max-w-sm">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-accent flex items-center justify-center shadow-glow">
                       <Sparkles className="w-7 h-7 text-primary-foreground" />
@@ -292,21 +381,33 @@ export default function EditorPage() {
                       {error ? 'Fix the syntax error to see your diagram.' : 'Paste your Mermaid code on the left to get started.'}
                     </p>
                   </div>
-                ) : (
-                  <div style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.15s ease' }}>
+                </div>
+              ) : (
+                <div
+                  ref={previewWrapRef}
+                  className="absolute inset-0 select-none"
+                  style={{
+                    cursor: dragging ? 'grabbing' : 'grab',
+                    touchAction: 'none',
+                  }}
+                >
+                  <div
+                    className="absolute top-0 left-0"
+                    style={{
+                      transform: panTranslate,
+                      transformOrigin: '0 0',
+                    }}
+                  >
                     <MermaidDiagram
                       code={debouncedCode}
                       idPrefix="preview"
                       onError={setError}
-                      onSvg={(s) => { svgRef.current = s; }}
+                      onSvg={(s) => { svgRef.current = s; setSvgEl(s); }}
+                      className="block pointer-events-none"
                     />
                   </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="present" className="flex-1 m-0 flex flex-col">
-              {tab === 'present' && <PresentMode onExit={() => setTab('preview')} />}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </section>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Sparkles, Presentation, Download, Code2, History, Link as LinkIcon, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MermaidDiagram } from '@/components/MermaidDiagram';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const HERO_FULL = `flowchart LR
@@ -100,7 +101,8 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Features</a>
             <a href="#showcase" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline ml-4">Showcase</a>
-            <Link to="/editor" className="ml-4">
+            <ThemeToggle className="ml-4" />
+            <Link to="/editor" className="ml-1">
               <Button size="sm" className="rounded-lg">Open Editor</Button>
             </Link>
           </div>
@@ -229,9 +231,13 @@ export default function Landing() {
                   transition={{ duration: 0.35 }}
                   className="grid lg:grid-cols-2 gap-4"
                 >
-                  <pre className="panel p-5 text-sm font-mono text-foreground/90 overflow-auto min-h-[360px]">{SHOWCASE[k]}</pre>
-                  <div className="panel p-6 flex items-center justify-center min-h-[360px]">
-                    <MermaidDiagram code={SHOWCASE[k]} idPrefix={`show-${k}`} className="w-full" />
+                  <pre className="panel p-5 text-sm font-mono text-foreground/90 overflow-auto h-[420px]">{SHOWCASE[k]}</pre>
+                  <div className="panel p-6 flex items-center justify-center h-[420px] overflow-hidden">
+                    <MermaidDiagram
+                      code={SHOWCASE[k]}
+                      idPrefix={`show-${k}`}
+                      className="w-full h-full flex items-center justify-center [&_svg]:!max-h-full [&_svg]:!max-w-full [&_svg]:!w-auto [&_svg]:!h-auto"
+                    />
                   </div>
                 </motion.div>
               </TabsContent>

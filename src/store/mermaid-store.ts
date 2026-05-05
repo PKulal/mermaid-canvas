@@ -23,10 +23,13 @@ interface MermaidStore {
   history: HistoryItem[];
   present: PresentState;
   diagramTheme: 'dark' | 'default';
+  uiTheme: 'dark' | 'light';
 
   setCode: (code: string) => void;
   setDiagramType: (t: string) => void;
   setDiagramTheme: (t: 'dark' | 'default') => void;
+  setUiTheme: (t: 'dark' | 'light') => void;
+  toggleUiTheme: () => void;
   pushHistory: (item: HistoryItem) => void;
   loadHistory: (items: HistoryItem[]) => void;
   clearHistory: () => void;
@@ -40,6 +43,7 @@ interface MermaidStore {
 
 const STORAGE_KEY = 'mermaidflow:state:v1';
 const HISTORY_KEY = 'mermaidflow:history:v1';
+const UI_THEME_KEY = 'mermaidflow:ui-theme:v1';
 
 function loadInitialCode(): string {
   if (typeof window === 'undefined') return DEFAULT_TEMPLATE.code;
@@ -68,16 +72,35 @@ function loadInitialHistory(): HistoryItem[] {
   return [];
 }
 
+function loadInitialUiTheme(): 'dark' | 'light' {
+  if (typeof window === 'undefined') return 'dark';
+  try {
+    const v = localStorage.getItem(UI_THEME_KEY);
+    if (v === 'light' || v === 'dark') return v;
+  } catch {}
+  return 'dark';
+}
+
 export const useMermaidStore = create<MermaidStore>((set, get) => ({
   code: loadInitialCode(),
   diagramType: 'flowchart',
   history: loadInitialHistory(),
-  diagramTheme: 'dark',
+  diagramTheme: loadInitialUiTheme() === 'light' ? 'default' : 'dark',
+  uiTheme: loadInitialUiTheme(),
   present: { active: false, graph: {}, root: null, currentNodeId: null, visitedPath: [] },
 
   setCode: (code) => set({ code }),
   setDiagramType: (diagramType) => set({ diagramType }),
   setDiagramTheme: (diagramTheme) => set({ diagramTheme }),
+  setUiTheme: (uiTheme) => {
+    try { localStorage.setItem(UI_THEME_KEY, uiTheme); } catch {}
+    set({ uiTheme, diagramTheme: uiTheme === 'light' ? 'default' : 'dark' });
+  },
+  toggleUiTheme: () => {
+    const next = get().uiTheme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(UI_THEME_KEY, next); } catch {}
+    set({ uiTheme: next, diagramTheme: next === 'light' ? 'default' : 'dark' });
+  },
 
   pushHistory: (item) =>
     set((s) => {
