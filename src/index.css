@@ -1,97 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* MermaidFlow design system — dark-first developer tool aesthetic */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Surfaces */
+    --background: 220 14% 6%;          /* #0D0F12 */
+    --foreground: 30 10% 88%;          /* warm gray text */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --surface: 218 14% 9%;             /* #13161B editor panel */
+    --surface-elevated: 218 12% 12%;
+    --surface-hover: 218 12% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --card: 218 14% 9%;
+    --card-foreground: 30 10% 88%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --popover: 218 14% 11%;
+    --popover-foreground: 30 10% 92%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Brand — electric cyan/teal */
+    --primary: 168 100% 42%;           /* #00D4AA */
+    --primary-foreground: 220 14% 6%;
+    --primary-glow: 168 100% 55%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: 218 12% 14%;
+    --secondary-foreground: 30 10% 88%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 218 12% 13%;
+    --muted-foreground: 30 6% 58%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 168 100% 42%;
+    --accent-foreground: 220 14% 6%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive: 0 75% 58%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 70% 48%;
+
+    --border: 218 12% 16%;
+    --input: 218 12% 16%;
+    --ring: 168 100% 42%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Gradients & shadows */
+    --gradient-hero: radial-gradient(ellipse at top, hsl(168 100% 42% / 0.15), transparent 60%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-surface: linear-gradient(180deg, hsl(218 14% 11%), hsl(218 14% 8%));
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.25);
+    --shadow-card: 0 8px 32px -8px hsl(220 14% 0% / 0.6);
+    --shadow-elevated: 0 20px 60px -20px hsl(220 14% 0% / 0.8);
 
-    --sidebar-primary: 240 5.9% 10%;
+    --transition-snappy: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 218 14% 8%;
+    --sidebar-foreground: 30 10% 80%;
+    --sidebar-primary: 168 100% 42%;
+    --sidebar-primary-foreground: 220 14% 6%;
+    --sidebar-accent: 218 12% 13%;
+    --sidebar-accent-foreground: 30 10% 88%;
+    --sidebar-border: 218 12% 16%;
+    --sidebar-ring: 168 100% 42%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+  /* Force dark always — landing/editor are dark-first */
+  html { color-scheme: dark; }
 }
 
 @layer base {
@@ -99,7 +77,71 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html, body, #root {
+    @apply h-full;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Sora', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  code, pre, .font-mono {
+    font-family: 'DM Mono', ui-monospace, monospace;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: hsl(var(--background)); }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
+}
+
+@layer components {
+  .panel {
+    @apply bg-surface border border-border rounded-[4px];
+  }
+  .glow-text {
+    text-shadow: 0 0 30px hsl(var(--primary) / 0.5);
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
   }
 }
+
+@layer utilities {
+  .animate-fade-in { animation: fade-in 0.5s ease-out both; }
+  .animate-fade-up { animation: fade-up 0.6s cubic-bezier(0.4,0,0.2,1) both; }
+  .animate-scale-in { animation: scale-in 0.25s ease-out both; }
+  .animate-slide-down { animation: slide-down 0.3s ease-out both; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mermaid svg sizing */
+.mermaid-render svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
