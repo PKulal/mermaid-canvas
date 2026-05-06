@@ -19,6 +19,7 @@ import { detectDiagramType } from '@/lib/mermaid-utils';
 import { exportPNG, exportPDF, exportSVG, copyShareUrl } from '@/lib/exporters';
 import { parseDiagramForPresent } from '@/lib/mermaid-parser';
 import { usePanZoom } from '@/hooks/use-pan-zoom';
+import { cn } from '@/lib/utils';
 
 const DIAGRAM_TYPES = [
   { v: 'flowchart', label: 'Flowchart' },
@@ -121,6 +122,7 @@ export default function EditorPage() {
   const [debouncedCode, setDebouncedCode] = useState(code);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState('preview');
+  const [mobileView, setMobileView] = useState<'code' | 'preview'>('preview');
   const [svgEl, setSvgEl] = useState<SVGElement | null>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const svgRef = useRef<SVGElement | null>(null);
@@ -250,40 +252,72 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <MobileBanner />
-
       {/* Top bar */}
-      <header className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-border bg-surface-elevated">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      <header className="h-14 shrink-0 flex items-center justify-between px-3 sm:px-4 border-b border-border bg-surface-elevated gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors shrink-0">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm hidden sm:inline">Home</span>
           </Link>
-          <div className="w-px h-5 bg-border" />
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-gradient-accent flex items-center justify-center">
+          <div className="w-px h-5 bg-border hidden sm:block" />
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-md bg-gradient-accent flex items-center justify-center shrink-0">
               <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-sm">MermaidFlow</span>
+            <span className="font-semibold text-sm truncate">MermaidFlow</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-            <Copy className="w-3.5 h-3.5" /> Copy Link
+          <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 px-2 sm:gap-1.5 text-muted-foreground hover:text-foreground" title="Copy shareable link">
+            <Copy className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Copy Link</span>
           </Button>
-          <Button size="sm" onClick={() => setTab('present')} className="h-8 gap-1.5">
-            <Play className="w-3.5 h-3.5" /> Present
+          <Button size="sm" onClick={() => setTab('present')} className="h-8 px-2 sm:gap-1.5" title="Present">
+            <Play className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Present</span>
           </Button>
         </div>
       </header>
+
+      {/* Mobile view toggle (hidden on lg+) */}
+      <div className="lg:hidden flex border-b border-border bg-surface-elevated shrink-0">
+        <button
+          onClick={() => setMobileView('code')}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            mobileView === 'code'
+              ? 'text-primary border-b-2 border-primary bg-primary/5'
+              : 'text-muted-foreground border-b-2 border-transparent hover:text-foreground'
+          )}
+        >
+          Code
+        </button>
+        <button
+          onClick={() => setMobileView('preview')}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            mobileView === 'preview'
+              ? 'text-primary border-b-2 border-primary bg-primary/5'
+              : 'text-muted-foreground border-b-2 border-transparent hover:text-foreground'
+          )}
+        >
+          Diagram
+        </button>
+      </div>
 
       {/* Main */}
       <div className="flex-1 flex overflow-hidden">
         <HistorySidebar />
 
-        {/* Code editor pane */}
-        <section className="w-[34%] min-w-[360px] flex flex-col border-r border-border bg-surface">
+        {/* Code editor pane — full-width on mobile when active, fixed-width side-by-side on lg+ */}
+        <section
+          className={cn(
+            'flex-col border-border bg-surface',
+            mobileView === 'code' ? 'flex flex-1' : 'hidden',
+            'lg:flex lg:flex-none lg:w-[34%] lg:min-w-[360px] lg:border-r'
+          )}
+        >
           <div className="h-11 shrink-0 flex items-center justify-between px-3 border-b border-border bg-surface-elevated">
             <div className="flex items-center gap-2">
               <Select value={diagramType} onValueChange={setDiagramType}>
@@ -328,8 +362,14 @@ export default function EditorPage() {
           )}
         </section>
 
-        {/* Right pane */}
-        <section className="flex-1 flex flex-col bg-background min-w-0">
+        {/* Right pane — full-width on mobile when active, fills remaining space on lg+ */}
+        <section
+          className={cn(
+            'flex-col bg-background min-w-0',
+            mobileView === 'preview' ? 'flex flex-1' : 'hidden',
+            'lg:flex lg:flex-1'
+          )}
+        >
           <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col">
             <div className="h-11 shrink-0 flex items-center justify-between px-3 border-b border-border bg-surface-elevated">
               <TabsList className="bg-surface border border-border h-8">
@@ -356,14 +396,17 @@ export default function EditorPage() {
                     {diagramTheme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                   </Button>
                   <div className="w-px h-5 bg-border mx-1" />
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => handleExport('png')}>
-                    <FileImage className="w-3.5 h-3.5" /> PNG
+                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:gap-1.5" onClick={() => handleExport('png')} title="Export PNG">
+                    <FileImage className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">PNG</span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => handleExport('svg')}>
-                    <Download className="w-3.5 h-3.5" /> SVG
+                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:gap-1.5" onClick={() => handleExport('svg')} title="Export SVG">
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">SVG</span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => handleExport('pdf')}>
-                    <FileText className="w-3.5 h-3.5" /> PDF
+                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:gap-1.5" onClick={() => handleExport('pdf')} title="Export PDF">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">PDF</span>
                   </Button>
                 </div>
               )}
@@ -408,6 +451,10 @@ export default function EditorPage() {
                   </div>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="present" className="flex-1 m-0 flex flex-col">
+              {tab === 'present' && <PresentMode onExit={() => setTab('preview')} />}
             </TabsContent>
           </Tabs>
         </section>
