@@ -1,14 +1,29 @@
 import mermaid from 'mermaid';
+import { isStyleActive, stripInitBlock, type MermaidStyle } from './mermaid-init';
 
 let initialized = false;
 
-export function initMermaid(theme: 'dark' | 'default' = 'dark') {
+export function initMermaid(theme: 'dark' | 'default' = 'dark', custom?: MermaidStyle) {
+  if (custom && isStyleActive(custom)) {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'loose',
+      theme: custom.theme,
+      themeVariables: custom.themeVariables,
+      // Render labels as native SVG <text> instead of <foreignObject>+HTML so
+      // the canvas-based PNG/PDF export isn't tainted by foreignObject.
+      flowchart: { htmlLabels: false },
+    });
+    initialized = true;
+    return;
+  }
   if (theme === 'dark') {
     mermaid.initialize({
       startOnLoad: false,
       theme: 'dark',
       securityLevel: 'loose',
       fontFamily: 'DM Mono, ui-monospace, monospace',
+      flowchart: { htmlLabels: false },
       themeVariables: {
         darkMode: true,
         background: '#13161B',
@@ -34,6 +49,7 @@ export function initMermaid(theme: 'dark' | 'default' = 'dark') {
       theme: 'base',
       securityLevel: 'loose',
       fontFamily: "'Sora', 'Inter', system-ui, sans-serif",
+      flowchart: { htmlLabels: false },
       themeVariables: {
         darkMode: false,
         background: '#FFFFFF',
@@ -75,11 +91,14 @@ export function initMermaid(theme: 'dark' | 'default' = 'dark') {
   initialized = true;
 }
 
-export async function renderMermaid(id: string, code: string): Promise<{ svg: string } | { error: string }> {
+export async function renderMermaid(id: string, code: string, custom?: MermaidStyle): Promise<{ svg: string } | { error: string }> {
   if (!initialized) initMermaid('dark');
+  // When a custom style is active, strip any leading `%%{init: ...}%%` so the
+  // runtime config from initMermaid() is what actually drives the rendering.
+  const source = custom && isStyleActive(custom) ? stripInitBlock(code) : code;
   try {
-    await mermaid.parse(code);
-    const { svg } = await mermaid.render(id, code);
+    await mermaid.parse(source);
+    const { svg } = await mermaid.render(id, source);
     return { svg };
   } catch (e: any) {
     return { error: e?.message || 'Invalid Mermaid syntax' };

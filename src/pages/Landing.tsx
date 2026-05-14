@@ -85,7 +85,7 @@ export default function Landing() {
   const animatedCode = useTypewriter(HERO_FULL, 14, 400);
   const [tab, setTab] = useState('flowchart');
 
-  useEffect(() => { document.title = 'MermaidFlow — Mermaid Diagrams, Brought to Life'; }, []);
+  useEffect(() => { document.title = 'MermaidFlow'; }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">

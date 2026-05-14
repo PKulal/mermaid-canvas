@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DEFAULT_TEMPLATE } from '@/lib/templates';
 import type { Graph } from '@/lib/mermaid-parser';
+import { DEFAULT_STYLE, type MermaidStyle } from '@/lib/mermaid-init';
 
 export interface HistoryItem {
   id: string;
@@ -24,12 +25,15 @@ interface MermaidStore {
   present: PresentState;
   diagramTheme: 'dark' | 'default';
   uiTheme: 'dark' | 'light';
+  customStyle: MermaidStyle;
 
   setCode: (code: string) => void;
   setDiagramType: (t: string) => void;
   setDiagramTheme: (t: 'dark' | 'default') => void;
   setUiTheme: (t: 'dark' | 'light') => void;
   toggleUiTheme: () => void;
+  setCustomStyle: (s: MermaidStyle) => void;
+  resetCustomStyle: () => void;
   pushHistory: (item: HistoryItem) => void;
   loadHistory: (items: HistoryItem[]) => void;
   clearHistory: () => void;
@@ -44,6 +48,7 @@ interface MermaidStore {
 const STORAGE_KEY = 'mermaidflow:state:v1';
 const HISTORY_KEY = 'mermaidflow:history:v1';
 const UI_THEME_KEY = 'mermaidflow:ui-theme:v1';
+const STYLE_KEY = 'mermaidflow:custom-style:v1';
 
 function loadInitialCode(): string {
   if (typeof window === 'undefined') return DEFAULT_TEMPLATE.code;
@@ -81,12 +86,30 @@ function loadInitialUiTheme(): 'dark' | 'light' {
   return 'dark';
 }
 
+function loadInitialCustomStyle(): MermaidStyle {
+  if (typeof window === 'undefined') return { ...DEFAULT_STYLE };
+  try {
+    const v = localStorage.getItem(STYLE_KEY);
+    if (v) {
+      const parsed = JSON.parse(v);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          theme: parsed.theme ?? 'default',
+          themeVariables: parsed.themeVariables ?? {},
+        };
+      }
+    }
+  } catch {}
+  return { ...DEFAULT_STYLE };
+}
+
 export const useMermaidStore = create<MermaidStore>((set, get) => ({
   code: loadInitialCode(),
   diagramType: 'flowchart',
   history: loadInitialHistory(),
   diagramTheme: loadInitialUiTheme() === 'light' ? 'default' : 'dark',
   uiTheme: loadInitialUiTheme(),
+  customStyle: loadInitialCustomStyle(),
   present: { active: false, graph: {}, root: null, currentNodeId: null, visitedPath: [] },
 
   setCode: (code) => set({ code }),
@@ -100,6 +123,14 @@ export const useMermaidStore = create<MermaidStore>((set, get) => ({
     const next = get().uiTheme === 'dark' ? 'light' : 'dark';
     try { localStorage.setItem(UI_THEME_KEY, next); } catch {}
     set({ uiTheme: next, diagramTheme: next === 'light' ? 'default' : 'dark' });
+  },
+  setCustomStyle: (customStyle) => {
+    try { localStorage.setItem(STYLE_KEY, JSON.stringify(customStyle)); } catch {}
+    set({ customStyle });
+  },
+  resetCustomStyle: () => {
+    try { localStorage.removeItem(STYLE_KEY); } catch {}
+    set({ customStyle: { ...DEFAULT_STYLE } });
   },
 
   pushHistory: (item) =>

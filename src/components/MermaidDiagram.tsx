@@ -17,11 +17,12 @@ export function MermaidDiagram({ code, idPrefix = 'mmd', className = '', onError
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const diagramTheme = useMermaidStore(s => s.diagramTheme);
+  const customStyle = useMermaidStore(s => s.customStyle);
   const theme = themeOverride ?? diagramTheme;
 
   useEffect(() => {
-    initMermaid(theme);
-  }, [theme]);
+    initMermaid(theme, customStyle);
+  }, [theme, customStyle]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +35,7 @@ export function MermaidDiagram({ code, idPrefix = 'mmd', className = '', onError
         return;
       }
       const id = `${idPrefix}-${++counter}`;
-      const result = await renderMermaid(id, code);
+      const result = await renderMermaid(id, code, customStyle);
       if (cancelled || !ref.current) return;
       if ('error' in result) {
         setError(result.error);
@@ -55,7 +56,7 @@ export function MermaidDiagram({ code, idPrefix = 'mmd', className = '', onError
     };
     run();
     return () => { cancelled = true; };
-  }, [code, idPrefix, theme]);
+  }, [code, idPrefix, theme, customStyle]);
 
   return <div ref={ref} className={`mermaid-render ${className}`} aria-hidden={!!error} />;
 }

@@ -3,20 +3,23 @@ import Editor, { loader } from '@monaco-editor/react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  AlertTriangle, ArrowLeft, Copy, Download, FileImage, FileText,
-  Maximize2, Moon, Play, Sparkles, Sun, ZoomIn, ZoomOut
+  AlertTriangle, ArrowLeft, Copy, Download,
+  Maximize2, Moon, Palette, Play, Sparkles, Sun, ZoomIn, ZoomOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useMermaidStore } from '@/store/mermaid-store';
 import { MermaidDiagram } from '@/components/MermaidDiagram';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { TemplatesDialog } from '@/components/editor/TemplatesDialog';
 import { HistorySidebar } from '@/components/editor/HistorySidebar';
 import { PresentMode } from '@/components/editor/PresentMode';
+import { StylePanel } from '@/components/editor/StylePanel';
+import { ExportDialog } from '@/components/editor/ExportDialog';
 import { detectDiagramType } from '@/lib/mermaid-utils';
-import { exportPNG, exportPDF, exportSVG, copyShareUrl } from '@/lib/exporters';
+import { copyShareUrl } from '@/lib/exporters';
 import { parseDiagramForPresent } from '@/lib/mermaid-parser';
 import { usePanZoom } from '@/hooks/use-pan-zoom';
 import { cn } from '@/lib/utils';
@@ -124,6 +127,7 @@ export default function EditorPage() {
   const [tab, setTab] = useState('preview');
   const [mobileView, setMobileView] = useState<'code' | 'preview'>('preview');
   const [svgEl, setSvgEl] = useState<SVGElement | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const svgRef = useRef<SVGElement | null>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
@@ -208,7 +212,6 @@ export default function EditorPage() {
       const { graph, root } = parseDiagramForPresent(debouncedCode);
       const preview = root ? graph[root]?.label || 'Untitled' : debouncedCode.split('\n')[0]?.slice(0, 40) || 'Untitled';
       pushHistory({ id: crypto.randomUUID(), code: debouncedCode, timestamp: Date.now(), preview });
-      document.title = `MermaidFlow — ${preview}`;
     }, 1500);
     return () => clearTimeout(t);
   }, [debouncedCode, error, pushHistory]);
@@ -226,18 +229,6 @@ export default function EditorPage() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [code]);
-
-  const handleExport = useCallback(async (kind: 'png' | 'svg' | 'pdf') => {
-    if (!svgRef.current) { toast.error('Nothing to export'); return; }
-    try {
-      if (kind === 'svg') exportSVG(svgRef.current, 'diagram.svg');
-      else if (kind === 'png') await exportPNG(svgRef.current, 'diagram.png');
-      else await exportPDF(svgRef.current, 'diagram.pdf');
-      toast.success(`Exported ${kind.toUpperCase()}`);
-    } catch (e: any) {
-      toast.error(`Export failed: ${e?.message || 'unknown error'}`);
-    }
-  }, []);
 
   const handleShare = useCallback(async () => {
     try {
@@ -395,18 +386,27 @@ export default function EditorPage() {
                     title="Toggle diagram theme">
                     {diagramTheme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                   </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Style diagram">
+                        <Palette className="w-3.5 h-3.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-80 max-h-[80vh] overflow-y-auto">
+                      <StylePanel />
+                    </PopoverContent>
+                  </Popover>
                   <div className="w-px h-5 bg-border mx-1" />
-                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:gap-1.5" onClick={() => handleExport('png')} title="Export PNG">
-                    <FileImage className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">PNG</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:gap-1.5" onClick={() => handleExport('svg')} title="Export SVG">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 sm:gap-1.5"
+                    onClick={() => setExportOpen(true)}
+                    disabled={!svgEl}
+                    title="Export"
+                  >
                     <Download className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">SVG</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 sm:gap-1.5" onClick={() => handleExport('pdf')} title="Export PDF">
-                    <FileText className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">PDF</span>
+                    <span className="hidden sm:inline">Export</span>
                   </Button>
                 </div>
               )}
@@ -453,12 +453,17 @@ export default function EditorPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="present" className="flex-1 m-0 flex flex-col">
+            <TabsContent
+              value="present"
+              className="flex-1 m-0 flex-col"
+              style={{ display: tab === 'present' ? 'flex' : 'none' }}
+            >
               {tab === 'present' && <PresentMode onExit={() => setTab('preview')} />}
             </TabsContent>
           </Tabs>
         </section>
       </div>
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} svgEl={svgEl} />
     </div>
   );
 }

@@ -20,20 +20,39 @@ export function exportSVG(svgEl: SVGElement, filename = 'diagram.svg') {
   downloadBlob(blob, filename);
 }
 
-async function svgToCanvas(svgEl: SVGElement, scale = 2): Promise<HTMLCanvasElement> {
-  const source = new XMLSerializer().serializeToString(svgEl);
-  const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = reject;
-    img.src = url;
-  });
+export async function svgToCanvas(svgEl: SVGElement, scale = 2): Promise<HTMLCanvasElement> {
+  // Mermaid leaves the SVG with only a viewBox; <img> needs explicit width/height
+  // attributes (not just CSS) to lay it out, otherwise it loads as 0×0 and the
+  // canvas comes out blank.
   const bbox = svgEl.getBoundingClientRect();
   const w = Math.max(bbox.width, 400);
   const h = Math.max(bbox.height, 300);
+
+  const clone = svgEl.cloneNode(true) as SVGElement;
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  clone.setAttribute('width', String(w));
+  clone.setAttribute('height', String(h));
+  // CSS sizing may have been added by the host page — drop it so the attrs win.
+  clone.removeAttribute('style');
+
+  const source = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.width = w;
+  img.height = h;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Browser could not load the SVG image'));
+      img.src = url;
+    });
+  } finally {
+    // Revoke after the image has been decoded; revoking earlier can race.
+  }
+
   const canvas = document.createElement('canvas');
   canvas.width = w * scale;
   canvas.height = h * scale;
@@ -47,7 +66,8 @@ async function svgToCanvas(svgEl: SVGElement, scale = 2): Promise<HTMLCanvasElem
 
 export async function exportPNG(svgEl: SVGElement, filename = 'diagram.png') {
   const canvas = await svgToCanvas(svgEl, 2);
-  const blob: Blob = await new Promise(res => canvas.toBlob(b => res(b!), 'image/png'));
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), 'image/png'));
+  if (!blob) throw new Error('Failed to encode PNG (canvas may be tainted)');
   downloadBlob(blob, filename);
 }
 
